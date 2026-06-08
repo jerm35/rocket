@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rocket Device Import</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Medium Dark Theme ("Dusky Slate") ── */
+:root {
+  --page-bg: #1E293B; --nav-bg: #162032; --nav-border: #2D3D54;
+  --nav-text: #8B9CB8; --nav-text-active: #E2E8F0; --nav-accent: #818CF8;
+  --card-bg: #273548; --card-border: #334155;
+  --text-primary: #E2E8F0; --text-secondary: #94A3B8; --text-muted: #64748B;
+  --btn-primary-bg: #6366F1; --btn-primary-text: #FFFFFF;
+  --btn-secondary-bg: #334155; --btn-secondary-text: #CBD5E1; --btn-secondary-border: #475569;
+  --btn-success-bg: #16A34A; --btn-success-text: #FFFFFF;
+  --table-border: #334155; --table-header-bg: #1E293B;
+  --table-row-hover: #2F3F55; --table-stripe-bg: #243347;
+  --input-bg: #1E293B; --input-border: #475569; --input-focus: #818CF8;
+  --input-text: #E2E8F0; --input-placeholder: #64748B; --divider: #334155;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3); --focus-ring: 0 0 0 3px rgba(129,140,248,0.25);
+  --badge-info-bg: #1E3A5F; --badge-info-text: #93C5FD; --badge-info-border: #2563EB;
+  --badge-success-bg: #14432A; --badge-success-text: #86EFAC; --badge-success-border: #16A34A;
+  --badge-warning-bg: #451A03; --badge-warning-text: #FCD34D; --badge-warning-border: #D97706;
+  --badge-danger-bg: #450A0A; --badge-danger-text: #FCA5A5; --badge-danger-border: #DC2626;
+  --badge-slate-bg: #334155; --badge-slate-text: #CBD5E1; --badge-slate-border: #475569;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: var(--text-primary); min-height: 100vh; }
+
+/* ── Login overlay ── */
+.login-overlay {
+  position: fixed; inset: 0; background: var(--page-bg); z-index: 100;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+}
+.login-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 40px; text-align: center; max-width: 380px; }
+.login-box h1 { font-size: 20px; margin-bottom: 8px; }
+.login-box p { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.login-error { color: var(--badge-danger-text); font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+/* ── Nav ── */
+.nav { background: var(--nav-bg); border-bottom: 1px solid var(--nav-border); padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 16px; }
+.nav-title { font-weight: 700; font-size: 18px; color: var(--nav-text-active); }
+.nav-subtitle { font-size: 13px; color: var(--nav-text); }
+.nav-spacer { flex: 1; }
+.nav-link { font-size: 13px; color: var(--nav-accent); text-decoration: none; cursor: pointer; font-weight: 500; }
+.nav-link:hover { text-decoration: underline; }
+.nav-user { font-size: 13px; color: var(--nav-text); }
+.nav-user strong { color: var(--nav-text-active); font-weight: 600; }
+
+.main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.card, .lookup-card, .school-card, .summary, .table-wrap, .push-results, .history-card {
+  background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 24px; box-shadow: var(--shadow);
+}
+.lookup-card h2, .school-card h3, .history-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.lookup-card p, .school-card p, .history-card p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+.lookup-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.lookup-input, select.school-select {
+  flex: 1; min-width: 200px; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 6px; color: var(--input-text); font-family: 'DM Mono', monospace; font-size: 14px; outline: none; transition: border-color 0.15s;
+}
+.lookup-input::placeholder { color: var(--input-placeholder); }
+.lookup-input:focus, select.school-select:focus { border-color: var(--input-focus); box-shadow: var(--focus-ring); }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.9; } .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); border: 1px solid var(--btn-secondary-border); }
+.btn-success { background: var(--btn-success-bg); color: var(--btn-success-text); }
+.btn-small { padding: 6px 14px; font-size: 12px; }
+.status { margin-top: 12px; font-size: 13px; color: var(--text-secondary); min-height: 20px; }
+.status.error { color: var(--badge-danger-text); }
+.prior-push-warning { display: none; margin-top: 12px; padding: 10px 14px; background: var(--badge-warning-bg); border: 1px solid var(--badge-warning-border); border-radius: 6px; font-size: 13px; color: var(--badge-warning-text); }
+.summary { display: none; margin-top: 20px; padding: 20px 24px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.summary-item label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-family: 'DM Mono', monospace; margin-bottom: 4px; }
+.summary-item span { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.school-card { display: none; margin-top: 16px; }
+.school-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.school-match { margin-top: 10px; font-size: 13px; }
+.school-match.matched { color: var(--badge-success-text); }
+.school-match.unmatched { color: var(--badge-warning-text); }
+.badge { display: inline-flex; align-items: center; padding: 4px 14px; font-size: 12px; font-weight: 600; border-radius: 999px; }
+.badge-info { background: var(--badge-info-bg); color: var(--badge-info-text); border: 1px solid var(--badge-info-border); }
+.badge-success { background: var(--badge-success-bg); color: var(--badge-success-text); border: 1px solid var(--badge-success-border); }
+.badge-warning { background: var(--badge-warning-bg); color: var(--badge-warning-text); border: 1px solid var(--badge-warning-border); }
+.badge-danger { background: var(--badge-danger-bg); color: var(--badge-danger-text); border: 1px solid var(--badge-danger-border); }
+.badge-slate { background: var(--badge-slate-bg); color: var(--badge-slate-text); border: 1px solid var(--badge-slate-border); }
+.table-wrap { display: none; margin-top: 20px; padding: 0; overflow: hidden; }
+.table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--divider); flex-wrap: wrap; gap: 12px; }
+.table-header h3 { font-size: 15px; font-weight: 700; }
+.table-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+/* ── Column-group toggle bar (U8) ── */
+.col-toggles { display: flex; gap: 14px; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--divider); font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+.col-toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: 'DM Mono', monospace; }
+.col-toggles .group-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.table-scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead { position: sticky; top: 0; z-index: 1; }
+th { background: var(--table-header-bg); color: var(--text-secondary); font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--table-border); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--table-border); white-space: nowrap; }
+tr:nth-child(even) { background: var(--table-stripe-bg); }
+tr:hover { background: var(--table-row-hover); }
+td.mono { font-family: 'DM Mono', monospace; font-size: 12px; }
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--btn-primary-bg); cursor: pointer; }
+/* Column-group visibility — toggled by adding hide-<group> to the table-scroll */
+.hide-device .col-device { display: none; }
+.hide-warranty .col-warranty { display: none; }
+.hide-network .col-network { display: none; }
+.push-results { display: none; margin-top: 16px; }
+.push-results h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.push-summary { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.push-log { max-height: 300px; overflow-y: auto; }
+.push-log-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--divider); font-size: 13px; }
+.push-log-item:last-child { border-bottom: none; }
+.push-log-serial { font-family: 'DM Mono', monospace; font-size: 12px; min-width: 200px; }
+.history-card { margin-top: 24px; } .history-card h3 { margin-bottom: 16px; }
+.history-empty { font-size: 13px; color: var(--text-muted); }
+.history-table { width: 100%; } .history-table td { padding: 8px 14px; }
+.spinner { display: none; width: 18px; height: 18px; border: 2px solid var(--text-muted); border-top-color: var(--nav-accent); border-radius: 50%; animation: spin 0.6s linear infinite; margin-left: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner.active { display: inline-block; }
+.progress-bar-wrap { display: none; margin-top: 12px; background: var(--input-bg); border-radius: 6px; overflow: hidden; height: 24px; position: relative; }
+.progress-bar-fill { height: 100%; background: var(--btn-primary-bg); transition: width 0.2s; border-radius: 6px; }
+.progress-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<!-- Login gate (shown until @ctl.net SSO completes) -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h1>Rocket Device Import</h1>
+    <p>Sign in with your CTL Google account to continue.</p>
+    <div id="google-btn-container"></div>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div class="nav">
+  <span class="nav-title">Rocket Device Import</span>
+  <span class="nav-subtitle">NetSuite Fulfillment &rarr; Rocket Inventory</span>
+  <span class="nav-spacer"></span>
+  <span class="nav-user" id="navUser"></span>
+  <a class="nav-link" onclick="toggleHistory()">History</a>
+  <a class="nav-link" id="logoutLink" onclick="ctlAuth.logout()">Sign out</a>
+</div>
+
+<div class="main">
+  <div class="lookup-card">
+    <h2>Fulfillment Lookup</h2>
+    <p>Enter a Fulfillment Ref No (e.g. IF4670), Transaction Number (e.g. ITEMSHIP4672), or Internal ID</p>
+    <div class="lookup-row">
+      <input class="lookup-input" id="idInput" type="text" placeholder="IF4670" autofocus>
+      <button class="btn btn-primary" id="fetchBtn" onclick="doLookup()">Fetch from NetSuite<span class="spinner" id="spinner"></span></button>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="prior-push-warning" id="priorPushWarning"></div>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="summary-grid">
+      <div class="summary-item"><label>Customer</label><span id="sumCustomer"></span></div>
+      <div class="summary-item"><label>Transaction #</label><span id="sumTranId" class="mono"></span></div>
+      <div class="summary-item"><label>Shipped Date</label><span id="sumDate"></span></div>
+      <div class="summary-item"><label>Total Devices</label><span id="sumCount"></span></div>
+    </div>
+  </div>
+
+  <div class="school-card" id="schoolCard">
+    <h3>Rocket School Mapping</h3>
+    <p>Select the Rocket school to receive these devices</p>
+    <div class="school-row">
+      <select class="school-select" id="schoolSelect"><option value="">-- Select a school --</option></select>
+      <button class="btn btn-secondary btn-small" onclick="refreshSchools()">Refresh Schools</button>
+    </div>
+    <div class="school-match" id="schoolMatch"></div>
+  </div>
+
+  <div class="table-wrap" id="tableWrap">
+    <div class="table-header">
+      <h3>Devices <span class="badge badge-info" id="countBadge"></span></h3>
+      <div class="table-actions">
+        <button class="btn btn-secondary" id="csvBtn" onclick="downloadCSV()">Download CSV</button>
+        <button class="btn btn-success" id="pushBtn" onclick="pushToRocket()" disabled>Push to Rocket</button>
+      </div>
+    </div>
+    <div class="col-toggles">
+      <span class="group-label">Columns:</span>
+      <label><input type="checkbox" id="tgl-device" checked onchange="toggleColGroup('device', this.checked)"> Device</label>
+      <label><input type="checkbox" id="tgl-warranty" checked onchange="toggleColGroup('warranty', this.checked)"> Warranty</label>
+      <label><input type="checkbox" id="tgl-network" checked onchange="toggleColGroup('network', this.checked)"> Network / Cellular</label>
+    </div>
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+      <div class="progress-bar-text" id="progressText"></div>
+    </div>
+    <div class="table-scroll" id="tableScroll">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="checkAll" checked onchange="toggleAll(this.checked)"></th>
+            <th>Serial Number</th>
+            <th class="col-device">Asset Tag</th>
+            <th class="col-device">Item SKU</th>
+            <th class="col-device">Description</th>
+            <th class="col-device">Model</th>
+            <th class="col-device">Manufacturer</th>
+            <th class="col-device">OS</th>
+            <th class="col-warranty">Warranty Plan</th>
+            <th class="col-warranty">Warranty Until</th>
+            <th class="col-warranty">Purchase Date</th>
+            <th class="col-network">MAC</th>
+            <th class="col-network">IMEI</th>
+            <th class="col-network">ICCID</th>
+            <th class="col-network">EID</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="push-results" id="pushResults">
+    <h3>Push Results</h3>
+    <div class="push-summary" id="pushSummary"></div>
+    <div class="push-log" id="pushLog"></div>
+  </div>
+
+  <div class="history-card" id="historyCard" style="display:none">
+    <h3>Push History</h3>
+    <div id="historyBody"></div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="/ctl-auth.js"></script>
+<script>
+// ── Config ──────────────────────────────────────────────────────────
+// Set this to the deployed rocket-api Worker URL (see rocket-frontend/README.md).
+const WORKER_URL = 'https://rocket-api.jburnett-589.workers.dev';
+
+let _data = null, _schools = [], _pushing = false, _historyVisible = false, _user = null;
+const $ = id => document.getElementById(id);
+
+// ── Auth (ctl-auth.js shared SSO) ──
+document.addEventListener('DOMContentLoaded', () => {
+  ctlAuth.init({
+    appName: 'Rocket Device Import',
+    buttonContainer: 'google-btn-container',
+    errorContainer: 'login-error',
+    verifyEndpoint: WORKER_URL + '/api/verify-token',
+    onAuth: function (user) {
+      _user = user;
+      $('loginOverlay').style.display = 'none';
+      $('navUser').innerHTML = 'Signed in as <strong>' + esc(user.email) + '</strong>';
+      loadSchools();
+    },
+  });
+});
+
+// authedFetch — prefixes the Worker URL and attaches the Google id token.
+async function authedFetch(path, opts = {}) {
+  const token = localStorage.getItem('ctl_token');
+  const headers = Object.assign({}, opts.headers, { Authorization: 'Bearer ' + token });
+  return fetch(WORKER_URL + path, Object.assign({}, opts, { headers }));
+}
+
+async function loadSchools() {
+  try {
+    const resp = await authedFetch('/api/rocket/schools');
+    const data = await resp.json();
+    _schools = data.schools || [];
+    populateSchoolSelect();
+  } catch (e) { console.warn('Could not load schools:', e); }
+}
+
+function populateSchoolSelect() {
+  const sel = $('schoolSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Select a school --</option>';
+  for (const s of _schools) {
+    const opt = document.createElement('option');
+    opt.value = JSON.stringify({ schoolId: s.schoolId, userId: s.schoolMainUserId });
+    opt.textContent = s.schoolName;
+    sel.appendChild(opt);
+  }
+  if (current) sel.value = current;
+  updatePushButton();
+}
+
+async function refreshSchools() {
+  try {
+    const resp = await authedFetch('/api/rocket/schools/refresh', { method: 'POST' });
+    const data = await resp.json();
+    _schools = data.schools || [];
+    populateSchoolSelect();
+  } catch (e) { console.error('Refresh failed:', e); }
+}
+
+function updatePushButton() {
+  $('pushBtn').disabled = !$('schoolSelect').value || !_data || _pushing;
+}
+$('schoolSelect').addEventListener('change', updatePushButton);
+
+// ── Fulfillment lookup ──
+async function doLookup() {
+  const id = $('idInput').value.trim();
+  if (!id) return;
+  const btn = $('fetchBtn'), spin = $('spinner'), status = $('status');
+  btn.disabled = true; spin.classList.add('active');
+  status.textContent = 'Querying NetSuite...'; status.className = 'status';
+  $('priorPushWarning').style.display = 'none';
+  try {
+    const resp = await authedFetch('/api/fulfillment/lookup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: id }),
+    });
+    if (!resp.ok) { const err = await resp.json(); throw new Error(err.error || ('HTTP ' + resp.status)); }
+    _data = await resp.json();
+    renderResults();
+    status.textContent = 'Found ' + _data.devices.length + ' devices.';
+  } catch (err) {
+    status.textContent = err.message; status.className = 'status error';
+    ['summary', 'schoolCard', 'tableWrap', 'pushResults'].forEach(i => $(i).style.display = 'none');
+  } finally { btn.disabled = false; spin.classList.remove('active'); }
+}
+
+function renderResults() {
+  const f = _data.fulfillment;
+  $('sumCustomer').textContent = f.customer;
+  $('sumTranId').textContent = f.tranId;
+  $('sumDate').textContent = f.tranDate;
+  $('sumCount').textContent = f.totalDevices;
+  $('summary').style.display = 'block';
+
+  const priorEl = $('priorPushWarning');
+  if (_data.priorPushes && _data.priorPushes.length) {
+    const latest = _data.priorPushes[0];
+    const when = new Date(latest.pushedAt).toLocaleString();
+    const who = latest.pushedBy ? (' by <strong>' + esc(latest.pushedBy) + '</strong>') : '';
+    priorEl.innerHTML = 'This fulfillment was previously pushed on <strong>' + esc(when) + '</strong>' + who +
+      ' to <strong>' + esc(latest.schoolName) + '</strong> (' + latest.added + ' devices). Pushing again will update existing serial numbers in place (no duplicates).';
+    priorEl.style.display = 'block';
+  } else { priorEl.style.display = 'none'; }
+
+  $('schoolCard').style.display = 'block';
+  const match = _data.schoolMatch, matchEl = $('schoolMatch');
+  if (match) {
+    matchEl.className = 'school-match matched';
+    matchEl.textContent = 'Auto-matched: "' + f.customer + '" → "' + match.schoolName + '"';
+    const opts = $('schoolSelect').options;
+    for (let i = 0; i < opts.length; i++) {
+      try { if (JSON.parse(opts[i].value).schoolId === match.schoolId) { $('schoolSelect').selectedIndex = i; break; } } catch {}
+    }
+  } else {
+    matchEl.className = 'school-match unmatched';
+    matchEl.textContent = 'No auto-match for "' + f.customer + '" — select a school manually';
+  }
+
+  $('countBadge').textContent = _data.devices.length + ' devices';
+  const tbody = $('tbody'); tbody.innerHTML = '';
+  let anyCellular = false;
+  _data.devices.forEach((d, i) => {
+    if (d.imei || d.iccid || d.eid) anyCellular = true;
+    const row = _data.rows[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="checkbox" class="row-check" data-idx="' + i + '" checked></td>' +
+      '<td class="mono">' + esc(d.serialNumber) + '</td>' +
+      '<td class="mono col-device">' + esc(d.assetTag) + '</td>' +
+      '<td class="mono col-device">' + esc(d.itemSku) + '</td>' +
+      '<td class="col-device">' + esc(d.itemDisplayName) + '</td>' +
+      '<td class="col-device">' + esc(row['Device Model']) + '</td>' +
+      '<td class="col-device">' + esc(row['Device Manufacturer']) + '</td>' +
+      '<td class="col-device">' + esc(row['Device Os']) + '</td>' +
+      '<td class="col-warranty">' + esc(d.warrantyPlan) + '</td>' +
+      '<td class="mono col-warranty">' + esc(row['Manufacturer Warranty Until']) + '</td>' +
+      '<td class="mono col-warranty">' + esc(row['Purchase Date']) + '</td>' +
+      '<td class="mono col-network">' + esc(row['MAC']) + '</td>' +
+      '<td class="mono col-network">' + esc(d.imei) + '</td>' +
+      '<td class="mono col-network">' + esc(d.iccid) + '</td>' +
+      '<td class="mono col-network">' + esc(d.eid) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Default the Network/Cellular columns off unless this fulfillment has any.
+  $('tgl-network').checked = anyCellular;
+  toggleColGroup('network', anyCellular);
+
+  $('checkAll').checked = true;
+  $('tableWrap').style.display = 'block';
+  $('pushResults').style.display = 'none';
+  $('progressWrap').style.display = 'none';
+  updatePushButton();
+}
+
+function toggleColGroup(group, show) {
+  $('tableScroll').classList.toggle('hide-' + group, !show);
+}
+
+// ── Push ──
+async function pushToRocket() {
+  if (!_data || _pushing) return;
+  const selVal = $('schoolSelect').value;
+  if (!selVal) return;
+  const { schoolId, userId } = JSON.parse(selVal);
+  const checks = document.querySelectorAll('.row-check:checked');
+  const serials = [...checks].map(cb => _data.devices[Number(cb.dataset.idx)].serialNumber);
+  if (!serials.length) { alert('No devices selected'); return; }
+
+  _pushing = true;
+  $('pushBtn').disabled = true; $('pushBtn').textContent = 'Pushing...';
+  const wrap = $('progressWrap'), fill = $('progressFill'), text = $('progressText');
+  wrap.style.display = 'block'; fill.style.width = '15%'; text.textContent = 'Pushing ' + serials.length + ' device(s)...';
+  try {
+    const resp = await authedFetch('/api/rocket/push', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tranId: _data.fulfillment.tranId, schoolId, userId, serials }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+    fill.style.width = '100%'; text.textContent = data.summary.total + ' / ' + data.summary.total;
+    renderPushResults(data);
+    if (_historyVisible) loadHistory();
+  } catch (err) { alert('Push failed: ' + err.message); }
+  finally { _pushing = false; $('pushBtn').disabled = false; $('pushBtn').textContent = 'Push to Rocket'; updatePushButton(); }
+}
+
+function renderPushResults(data) {
+  const { summary, results } = data;
+  const s = $('pushSummary'); s.innerHTML = '';
+  if (summary.added) s.innerHTML += '<span class="badge badge-success">' + summary.added + ' Added</span> ';
+  if (summary.updated) s.innerHTML += '<span class="badge badge-info">' + summary.updated + ' Updated</span> ';
+  if (summary.errors) s.innerHTML += '<span class="badge badge-danger">' + summary.errors + ' Errors</span> ';
+  s.innerHTML += '<span class="badge badge-slate">' + summary.total + ' Total</span>';
+  const log = $('pushLog'); log.innerHTML = '';
+  for (const r of results) {
+    const cls = r.status === 'added' ? 'badge-success' : r.status === 'updated' ? 'badge-info' : 'badge-danger';
+    const detail = r.error || '';
+    log.innerHTML += '<div class="push-log-item"><span class="push-log-serial">' + esc(r.serialNumber) + '</span>' +
+      '<span class="badge ' + cls + '">' + r.status + '</span>' +
+      (detail ? '<span style="color:var(--text-muted);font-size:12px">' + esc(String(detail)) + '</span>' : '') + '</div>';
+  }
+  $('pushResults').style.display = 'block';
+}
+
+// ── History ──
+async function toggleHistory() {
+  _historyVisible = !_historyVisible;
+  const card = $('historyCard');
+  if (_historyVisible) { card.style.display = 'block'; await loadHistory(); }
+  else { card.style.display = 'none'; }
+}
+async function loadHistory() {
+  try { renderHistory(await (await authedFetch('/api/rocket/history')).json()); }
+  catch (e) { $('historyBody').innerHTML = '<div class="history-empty">Failed to load history</div>'; }
+}
+function renderHistory(history) {
+  const body = $('historyBody');
+  if (!history.length) { body.innerHTML = '<div class="history-empty">No fulfillments have been pushed yet.</div>'; return; }
+  let html = '<table class="history-table"><thead><tr><th>Fulfillment</th><th>Customer</th><th>School</th><th>Ship Date</th><th>Pushed</th><th>By</th><th>Devices</th><th>Status</th></tr></thead><tbody>';
+  for (const h of history) {
+    const when = new Date(h.pushedAt).toLocaleString();
+    const upd = h.updated ? (' / ' + h.updated + ' upd') : '';
+    const statusBadge = h.errors
+      ? '<span class="badge badge-warning">' + (h.added + upd) + ' / ' + h.errors + ' err</span>'
+      : '<span class="badge badge-success">' + ((h.added || 0) + (h.updated || 0)) + ' ok</span>';
+    html += '<tr><td class="mono">' + esc(h.tranId) + '</td><td>' + esc(h.customer) + '</td><td>' + esc(h.schoolName) +
+      '</td><td class="mono">' + esc(h.tranDate) + '</td><td style="font-size:12px">' + esc(when) + '</td><td style="font-size:12px">' + esc(h.pushedBy || '') +
+      '</td><td>' + h.deviceCount + '</td><td>' + statusBadge + '</td></tr>';
+  }
+  body.innerHTML = html + '</tbody></table>';
+}
+
+// ── Utilities ──
+function toggleAll(checked) { document.querySelectorAll('.row-check').forEach(cb => cb.checked = checked); }
+
+// Client-side CSV (replaces the old server CSV route). Column order is the
+// canonical Rocket import order; only checked rows are exported.
+const CSV_COLUMNS = ['Serial Number','Manufacturer Warranty Until','Manufacturer ADP Until','Third Party Extended Warranty Until','Third Party ADP Until','Expected Retirement','Is Loaner Device?','Device Model','Device MPN','Asset Tag','Purchase Date','Device Os','Repair Cap','Building','Room','Device Manufacturer','MAC'];
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function downloadCSV() {
+  if (!_data) return;
+  const indices = [...document.querySelectorAll('.row-check:checked')].map(cb => Number(cb.dataset.idx));
+  if (!indices.length) { alert('No devices selected'); return; }
+  const lines = [CSV_COLUMNS.join(',')];
+  for (const i of indices) {
+    const row = _data.rows[i];
+    lines.push(CSV_COLUMNS.map(c => csvCell(row[c])).join(','));
+  }
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const filename = _data.fulfillment.tranId + '_rocket_import_' + date + '.csv';
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+$('idInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
+</script>
+</body>
+</html>
