@@ -1,0 +1,10 @@
+{
+  "name": "Rocket Device Import",
+  "short_name": "Rocket Import",
+  "description": "Push NetSuite fulfillment devices into Rocket (K12 Tech Repairs).",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#1E293B",
+  "theme_color": "#162032"
+}
