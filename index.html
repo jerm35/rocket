@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rocket Device Import</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23162032'/%3E%3Cpath d='M16 4C19 7 20 12 20 17L12 17C12 12 13 7 16 4Z' fill='%23E2E8F0'/%3E%3Ccircle cx='16' cy='12' r='2.2' fill='%2322d3ee'/%3E%3Cpath d='M12 16L9 21L12 20Z' fill='%23818CF8'/%3E%3Cpath d='M20 16L23 21L20 20Z' fill='%23818CF8'/%3E%3Cpath d='M12 17L20 17L18 21L14 21Z' fill='%23CBD5E1'/%3E%3Cpath d='M14.5 21L16 27L17.5 21Z' fill='%23FB923C'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -82,6 +83,19 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .school-match { margin-top: 10px; font-size: 13px; }
 .school-match.matched { color: var(--badge-success-text); }
 .school-match.unmatched { color: var(--badge-warning-text); }
+/* ── Searchable school combobox ── */
+.combo { position: relative; flex: 1; min-width: 200px; }
+.combo-list {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+  background: var(--card-bg); border: 1px solid var(--input-border); border-radius: 6px;
+  max-height: 260px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+.combo-list.open { display: block; }
+.combo-item { padding: 9px 14px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--divider); }
+.combo-item:last-child { border-bottom: none; }
+.combo-item:hover, .combo-item.active { background: var(--table-row-hover); }
+.combo-item.selected { color: var(--nav-accent); }
+.combo-empty { padding: 9px 14px; font-size: 13px; color: var(--text-muted); }
 .badge { display: inline-flex; align-items: center; padding: 4px 14px; font-size: 12px; font-weight: 600; border-radius: 999px; }
 .badge-info { background: var(--badge-info-bg); color: var(--badge-info-text); border: 1px solid var(--badge-info-border); }
 .badge-success { background: var(--badge-success-bg); color: var(--badge-success-text); border: 1px solid var(--badge-success-border); }
@@ -173,7 +187,10 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--btn-prim
     <h3>Rocket School Mapping</h3>
     <p>Select the Rocket school to receive these devices</p>
     <div class="school-row">
-      <select class="school-select" id="schoolSelect"><option value="">-- Select a school --</option></select>
+      <div class="combo" id="schoolCombo">
+        <input class="lookup-input" id="schoolSearch" type="text" placeholder="Search schools by any term…" autocomplete="off">
+        <div class="combo-list" id="schoolList"></div>
+      </div>
       <button class="btn btn-secondary btn-small" onclick="refreshSchools()">Refresh Schools</button>
     </div>
     <div class="school-match" id="schoolMatch"></div>
@@ -242,7 +259,7 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--btn-prim
 // Set this to the deployed rocket-api Worker URL (see rocket-frontend/README.md).
 const WORKER_URL = 'https://rocket-api.jburnett-589.workers.dev';
 
-let _data = null, _schools = [], _pushing = false, _historyVisible = false, _user = null;
+let _data = null, _schools = [], _pushing = false, _historyVisible = false, _user = null, _selectedSchool = null;
 const $ = id => document.getElementById(id);
 
 // ── Auth (ctl-auth.js shared SSO) ──
@@ -277,19 +294,46 @@ async function loadSchools() {
   } catch (e) { console.warn('Could not load schools:', e); }
 }
 
-function populateSchoolSelect() {
-  const sel = $('schoolSelect');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">-- Select a school --</option>';
-  for (const s of _schools) {
-    const opt = document.createElement('option');
-    opt.value = JSON.stringify({ schoolId: s.schoolId, userId: s.schoolMainUserId });
-    opt.textContent = s.schoolName;
-    sel.appendChild(opt);
+// Searchable school combobox — filters _schools by any term in the name.
+function renderSchoolList(filter) {
+  const list = $('schoolList');
+  const q = (filter || '').trim().toLowerCase();
+  const matches = _schools.filter(s => !q || (s.schoolName || '').toLowerCase().includes(q));
+  if (!matches.length) {
+    list.innerHTML = '<div class="combo-empty">' + (_schools.length ? 'No schools match' : 'No schools loaded — click Refresh Schools') + '</div>';
+  } else {
+    list.innerHTML = matches.map(s => {
+      const sel = _selectedSchool && _selectedSchool.schoolId === s.schoolId ? ' selected' : '';
+      return '<div class="combo-item' + sel + '" data-id="' + esc(s.schoolId) + '">' + esc(s.schoolName) + '</div>';
+    }).join('');
+    list.querySelectorAll('.combo-item').forEach(el => {
+      // mousedown fires before the input's blur, so the click registers.
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const s = _schools.find(x => x.schoolId === el.dataset.id);
+        if (s) selectSchool(s);
+      });
+    });
   }
-  if (current) sel.value = current;
+  list.classList.add('open');
+}
+
+function selectSchool(s) {
+  _selectedSchool = { schoolId: s.schoolId, userId: s.schoolMainUserId, schoolName: s.schoolName };
+  $('schoolSearch').value = s.schoolName;
+  $('schoolList').classList.remove('open');
   updatePushButton();
 }
+
+// Kept for callers after (re)loading schools — refresh the list if it's open.
+function populateSchoolSelect() {
+  if ($('schoolList').classList.contains('open')) renderSchoolList($('schoolSearch').value);
+  updatePushButton();
+}
+
+$('schoolSearch').addEventListener('focus', () => renderSchoolList($('schoolSearch').value));
+$('schoolSearch').addEventListener('input', () => { _selectedSchool = null; renderSchoolList($('schoolSearch').value); updatePushButton(); });
+$('schoolSearch').addEventListener('blur', () => setTimeout(() => $('schoolList').classList.remove('open'), 150));
 
 async function refreshSchools() {
   try {
@@ -301,9 +345,8 @@ async function refreshSchools() {
 }
 
 function updatePushButton() {
-  $('pushBtn').disabled = !$('schoolSelect').value || !_data || _pushing;
+  $('pushBtn').disabled = !_selectedSchool || !_data || _pushing;
 }
-$('schoolSelect').addEventListener('change', updatePushButton);
 
 // ── Fulfillment lookup ──
 async function doLookup() {
@@ -351,13 +394,13 @@ function renderResults() {
   if (match) {
     matchEl.className = 'school-match matched';
     matchEl.textContent = 'Auto-matched: "' + f.customer + '" → "' + match.schoolName + '"';
-    const opts = $('schoolSelect').options;
-    for (let i = 0; i < opts.length; i++) {
-      try { if (JSON.parse(opts[i].value).schoolId === match.schoolId) { $('schoolSelect').selectedIndex = i; break; } } catch {}
-    }
+    _selectedSchool = { schoolId: match.schoolId, userId: match.userId, schoolName: match.schoolName };
+    $('schoolSearch').value = match.schoolName;
   } else {
     matchEl.className = 'school-match unmatched';
-    matchEl.textContent = 'No auto-match for "' + f.customer + '" — select a school manually';
+    matchEl.textContent = 'No auto-match for "' + f.customer + '" — search and select a school manually';
+    _selectedSchool = null;
+    $('schoolSearch').value = '';
   }
 
   $('countBadge').textContent = _data.devices.length + ' devices';
@@ -404,9 +447,8 @@ function toggleColGroup(group, show) {
 // ── Push ──
 async function pushToRocket() {
   if (!_data || _pushing) return;
-  const selVal = $('schoolSelect').value;
-  if (!selVal) return;
-  const { schoolId, userId } = JSON.parse(selVal);
+  if (!_selectedSchool) return;
+  const { schoolId, userId } = _selectedSchool;
   const checks = document.querySelectorAll('.row-check:checked');
   const serials = [...checks].map(cb => _data.devices[Number(cb.dataset.idx)].serialNumber);
   if (!serials.length) { alert('No devices selected'); return; }
